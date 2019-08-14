@@ -1,0 +1,123 @@
+Sheet1:
+// Load *
+// from 'lib://EPA_QVD_Data/Region3\insp report test.qvd'(qvd); 
+
+Load 
+	ACTIVITY_ID AS [Activity ID],
+    date(ACTUAL_DATE) as [Report Completion Date]
+Where SUB_ACTIVITY_TYPE_DESC = 'Inspection Report Completed';
+SQL SELECT DISTINCT
+  ICIS_COMP_MONITOR_REPORT.ACTIVITY_ID,
+  REF_SUB_ACTIVITY_TYPE.SUB_ACTIVITY_TYPE_DESC,
+  ICIS_SUB_ACTIVITY.ACTUAL_DATE
+FROM
+  ICIS_COMP_MONITOR_REPORT,
+  ICIS_ACTIVITY_REPORT,
+  REF_SUB_ACTIVITY_TYPE,
+  ICIS_SUB_ACTIVITY
+WHERE
+  ( ICIS_COMP_MONITOR_REPORT.ACTIVITY_ID=ICIS_ACTIVITY_REPORT.ACTIVITY_ID  AND ICIS_ACTIVITY_REPORT.activity_type_code in ('INS','INF','INV','OSR')  )
+  AND  ( ICIS_SUB_ACTIVITY.SUB_ACTIVITY_TYPE_CODE=REF_SUB_ACTIVITY_TYPE.SUB_ACTIVITY_TYPE_CODE(+)  )
+  AND  ( ICIS_SUB_ACTIVITY.ACTIVITY_ID(+)=ICIS_ACTIVITY_REPORT.ACTIVITY_ID  )
+   AND
+   ICIS_ACTIVITY_REPORT.REGION_CODE  =  '03'
+   AND
+    ICIS_ACTIVITY_REPORT.ACTUAL_END_DATE  >=  '01-Jul-2018';
+   
+Join Load 
+	ACTIVITY_ID AS [Activity ID],
+    date(ACTUAL_DATE) as [Report Sent To Facility Date]
+Where SUB_ACTIVITY_TYPE_DESC = 'Inspection Report Sent To Facility';
+SQL SELECT DISTINCT
+  ICIS_COMP_MONITOR_REPORT.ACTIVITY_ID,
+  REF_SUB_ACTIVITY_TYPE.SUB_ACTIVITY_TYPE_DESC,
+  ICIS_SUB_ACTIVITY.ACTUAL_DATE
+FROM
+  ICIS_COMP_MONITOR_REPORT,
+  ICIS_ACTIVITY_REPORT,
+  REF_SUB_ACTIVITY_TYPE,
+  ICIS_SUB_ACTIVITY
+WHERE
+  ( ICIS_COMP_MONITOR_REPORT.ACTIVITY_ID=ICIS_ACTIVITY_REPORT.ACTIVITY_ID  AND ICIS_ACTIVITY_REPORT.activity_type_code in ('INS','INF','INV','OSR')  )
+  AND  ( ICIS_SUB_ACTIVITY.SUB_ACTIVITY_TYPE_CODE=REF_SUB_ACTIVITY_TYPE.SUB_ACTIVITY_TYPE_CODE(+)  )
+  AND  ( ICIS_SUB_ACTIVITY.ACTIVITY_ID(+)=ICIS_ACTIVITY_REPORT.ACTIVITY_ID  )
+   AND
+   ICIS_ACTIVITY_REPORT.REGION_CODE  =  '03'
+   AND
+    ICIS_ACTIVITY_REPORT.ACTUAL_END_DATE  >=  '01-Jul-2018'
+   ;
+
+// store Sheet1 into 'lib://EPA_QVD_Data/Region3\insp report test.qvd'(qvd); 
+
+right Join LOAD
+    "Compliance Monitoring Activity ID" as [Activity ID],
+    DeficientInspection,
+    "Excluded Inspections",
+    Inspections,
+    "Deficient Inspections",
+    "Inspections Excluded",
+    "Regional Priority",
+    "Compliance Monitoring Activity Type",
+    "Compliance Monitoring Type",
+    "ProgramScript" as Program,
+    "Statute Section Codes",
+    "Sections Code",
+    "Sections",
+    "Federal Statute",
+    "CompMonAgenType2" as Agency,
+    "FirstNLast" as "Inspector",
+    "Office",
+    "Compliance Monitoring Action Reason",
+    [Program] as "Program Description",
+    "Program Acronym",
+    "Program ID",
+    "FRS Facility Name",
+    "FRS ID",
+    Latitude,
+    Longitude,
+    "Compliance Monitoring Activity Name",
+    "Primary NAICS",
+    "Compliance Monitoring Unique Identifier",
+    "Actual Start",
+    "Actual End",
+    "Actual End Fiscal Quarter",
+    "Actual End Fiscal Year"
+   // 'https://usepa.sharepoint.com/sites/R2_Work/compliancedatacert/Lists/Inspection%20Report%20Completion/NewForm.aspx?ActivityID='&[Compliance Monitoring Activity ID]&'&Inspection='& Date([Actual End])&'&InspectorName='& ([Inspector(s)])&'&FacilityName='&[FRS Facility Name] as "Add Report Date URL"
+FROM [lib://EPA_QVD_Data/Region3\ExportAllINSPQVD.qvd]
+(qvd) Where "Actual End" >= date('07/01/18')
+and not Match("Compliance Monitoring Activity Type",'Information Request');
+
+
+Join Load
+	[Activity ID],
+//     If (((Today()-([Actual End]+'70'))=14) and IsNull([Report Sent To Facility Date]),'Due in 2 Weeks') as "Due in 2 Weeks",
+    If (((Today()-([Actual End]+'70'))=14),'Due in 2 Weeks') as "Due in 2 Weeks",
+    Date([Actual End]+'70') as "Due Date",
+	Num(([Report Completion Date]-[Actual End])) as "Days to Completion", 
+    Num(([Report Sent To Facility Date] - [Actual End])) as " Days to Transmission",
+    Num((Today()-[Actual End])) as "Days since Actual End",
+    If (isnull([Report Completion Date]-[Actual End]),
+    	//if(Len([Applicability])=0, 
+        	If(match([Compliance Monitoring Type],'Financial Record Review','PCE Off-Site') or
+            	match([Compliance Monitoring Type], 'Oversight') and match(Program,'NPDES') or
+				match([Program],'FIFRA','LBP') and wildmatch([Compliance Monitoring Action Reason],'*Oversight*'),
+				'Never Applicable',
+                if(isnull([Report Completion Date]) and Today()-[Actual End]< 60,'Not Completed <60 days','Not Completed >60 days')),
+            //[Applicability])
+    	if([Report Completion Date]-[Actual End]>60, 'Completed >60 days','Completed <60 days')) as "Inspection Report Completion Status",
+        
+        
+            
+    If (isnull([Report Sent To Facility Date]-[Actual End]),
+    	//if(Len([Applicability])=0, 
+        	If(match([Compliance Monitoring Type],'Financial Record Review','PCE Off-Site') or
+            	match([Compliance Monitoring Type], 'Oversight') and match(Program,'NPDES') or
+				match([Program],'FIFRA','LBP') and wildmatch([Compliance Monitoring Action Reason],'*Oversight*'),
+				'Never Applicable',
+                if(isnull([Report Sent To Facility Date]) and Today()-[Actual End]< 70,'Not Sent <70 days','Not Sent >70 days')),
+            //[Applicability]) 
+    	if([Report Sent To Facility Date]-[Actual End]>70, 'Sent >70 days','Sent <70 days')) as "Report Transmission Completion Status"
+        
+        Resident Sheet1;
+		
+		

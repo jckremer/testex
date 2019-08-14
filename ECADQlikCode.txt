@@ -121,23 +121,3 @@ Join Load
         Resident Sheet1;
 		
 		
-		join Load
-[Activity ID],
-if ("Report Transmission Completion Status" = 'Not Sent <70 days', 
-	date(([Actual End])+ if(year([Actual End])<2019, 70, 70)))as "Becomes Late After",
-    
-    date(([Actual End])+ if(year([Actual End])< 2019 and Date([Actual End])> Date('10/21/2018'), 70, 70))as "Due In Month",
-    
-    
-if (Today() - [Actual End] >= 30 and IsNull([Report Completion Date]) and "Inspection Report Completion Status"<> 'Never Applicable', 'Report Not Completed 30 days') as "30 Day Report Status"
-
-//shutdown adjustments included above
-resident Sheet1;
-
-join Load
-[Activity ID],
-if( "Becomes Late After" - Today() <= 14, 'Due in Next 2 Weeks') as "Due in Next Two Weeks",
-if(month("Due In Month") =month(today()), 'Due this month') as DueInMonthFilter
-resident Sheet1;
-
-		
